@@ -13,16 +13,16 @@ def ensure_icon():
     if os.path.exists(ICON_ICO):
         return ICON_ICO
     if not os.path.exists(ICON_PNG):
-        print(f"[跳过图标] 未找到 {ICON_PNG}，请把你发的 Logo 保存为该路径后再打包。")
+        print(f"[skip icon] missing {ICON_PNG}, build with default icon.")
         return None
     try:
         from PIL import Image
         img = Image.open(ICON_PNG).convert("RGBA")
         img.save(ICON_ICO, sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])
-        print(f"[图标] 已生成 {ICON_ICO}")
+        print(f"[icon] generated {ICON_ICO}")
         return ICON_ICO
     except Exception as e:
-        print(f"[图标失败] {e}，将使用默认图标打包。")
+        print(f"[icon failed] {e}, build with default icon.")
         return None
 
 def main():
@@ -47,8 +47,8 @@ def main():
         cmd.insert(-1, icon)
     print(" ".join(cmd))
     subprocess.check_call(cmd, cwd=BASE)
-    print(f"\n打包完成: {os.path.join(DIST, APP_NAME, APP_NAME + '.exe')}")
-    print("把整个 dist/FluorescenceAnalyzer 文件夹压缩为 ZIP 后上传到 GitHub Release 即可。")
+    print(f"\nBuild done: {os.path.join(DIST, APP_NAME, APP_NAME + '.exe')}")
+    print("Zip dist/FluorescenceAnalyzer and upload to GitHub Release.")
 
 if __name__ == "__main__":
     main()
