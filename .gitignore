@@ -6,7 +6,11 @@ dist/
 *.zip
 .DS_Store
 
-# 本地才用得到的资源: 图标与自动生成的仿真示例不入库
-assets/
+# 本地才用: 仿真示例自动生成不入库; 大 PNG 不入库
+assets/samples/
+assets/logo.png
 logo.ico
 make_logo.py
+
+# 例外: 云端打包 EXE 图标需要该文件，必须入库
+!assets/logo.ico
