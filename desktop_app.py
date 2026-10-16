@@ -58,7 +58,7 @@ class Worker(QThread):
     def __init__(self, img): super().__init__(); self.img = img
     def run(self):
         masks, extra = detect_masks(self.img)
-        ov, vis = overlay_and_contours(self.img, masks)
+        ov, vis = overlay_and_contours(self.img, masks, extra)
         self.done.emit({"masks": masks, "extra": extra, "ov": ov, "vis": vis, "stats": stats(masks, extra)})
 
 def stat_card(title, tip, bar_id, dot):
