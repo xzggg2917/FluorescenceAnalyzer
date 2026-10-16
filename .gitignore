@@ -5,3 +5,8 @@ dist/
 *.spec
 *.zip
 .DS_Store
+
+# 本地才用得到的资源: 图标与自动生成的仿真示例不入库
+assets/
+logo.ico
+make_logo.py
