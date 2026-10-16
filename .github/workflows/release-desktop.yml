@@ -1,0 +1,31 @@
+name: release-desktop
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements_desktop.txt
+          pip install pyinstaller pillow
+      - name: Build EXE (UI 与图二一致)
+        run: python build_desktop.py
+      - name: Zip portable folder
+        run: Compress-Archive -Path dist/FluorescenceAnalyzer -DestinationPath FluorescenceAnalyzer-win64.zip
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: FluorescenceAnalyzer-win64.zip
+          body: |
+            荧光三分类桌面端(界面与图二一致)。
+            解压后双击 FluorescenceAnalyzer.exe 即可使用，无需安装 Python。

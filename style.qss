@@ -1,0 +1,31 @@
+/* v2 judge-ready theme - 大字体版: 底部说明/图例/进度字全部放大 */
+* { font-family: 'Microsoft YaHei','Segoe UI',sans-serif; }
+QMainWindow { background: #070d1d; }
+#side { background: qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #0d9488,stop:0.5 #0369a1,stop:1 #1e1b4b); border-radius: 20px; }
+#side QLabel { color: white; background: transparent; }
+#title { font-size: 28px; font-weight: 800; color: white; }
+#subtitle { font-size: 15px; color: #d9f9f4; }
+#step { background: rgba(255,255,255,0.14); border-radius: 10px; padding: 9px 11px; color: white; font-size: 15px; font-weight: 600; }
+QPushButton#primary { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #2dd4bf,stop:1 #38bdf8); color: #06202b; font-size: 17px; font-weight: 800; border-radius: 14px; padding: 14px; border: none; }
+QPushButton#primary:hover { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #99f6e4,stop:1 #bae6fd); }
+QPushButton#primary:disabled { background: #334155; color: #94a3b8; }
+QPushButton#ghost { background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.35); border-radius: 12px; padding: 11px; font-weight: 700; font-size: 15px; }
+QPushButton#ghost:hover { background: rgba(255,255,255,0.24); }
+#card { background: qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #101d3a,stop:1 #0c1530); border: 1px solid #263c63; border-radius: 18px; }
+#cardTitle { color: #7dd3fc; font-size: 16px; font-weight: 800; background: transparent; }
+#cap { color: #e2e8f0; font-size: 16px; font-weight: 700; background: transparent; }
+#stat { color: #c3d4ec; font-size: 15px; background: transparent; }
+#big { color: white; font-size: 32px; font-weight: 800; background: transparent; }
+#bigSmall { color: white; font-size: 30px; font-weight: 800; background: transparent; }
+#conclusion { color: white; font-size: 21px; font-weight: 800; background: transparent; }
+#badge { background: rgba(45,212,191,0.18); color: #5eead4; border: 1px solid rgba(45,212,191,0.5); border-radius: 10px; padding: 6px 12px; font-size: 14px; font-weight: 700; }
+QProgressBar { background: #1c2a4d; border-radius: 9px; text-align: center; color: #e2e8f0; font-size: 14px; height: 22px; border: none; }
+QProgressBar::chunk { border-radius: 9px; background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #14b8a6,stop:1 #38bdf8); }
+QProgressBar#red::chunk { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #fb7185,stop:1 #ef4444); }
+QProgressBar#amber::chunk { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #fbbf24,stop:1 #f97316); }
+QProgressBar#slate::chunk { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #cbd5e1,stop:1 #64748b); }
+QProgressBar#teal::chunk { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #2dd4bf,stop:1 #0ea5e9); }
+QLabel#imgLabel { background: #040814; border: 1px solid #263c63; border-radius: 14px; color: #475569; font-size: 15px; }
+QStatusBar { color: #93c5fd; background: transparent; font-size: 14px; }
+QStatusBar::item { border: none; }
+QToolTip { background: #0f172a; color: white; border: 1px solid #38bdf8; font-size: 14px; }
