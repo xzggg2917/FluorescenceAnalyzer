@@ -59,14 +59,19 @@ def gray_dark_region(img_bgr):
     bg = border_background(img_bgr)
     fur = fur_mask(img_bgr)
     valid = (bg == 0)
-    # 局部对比核: 必须大于病灶本身, 否则深灰三角内部响应为0。
-    size = max(15, int(min(h, w) * 0.22) | 1)
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (size, size))
-    response = cv2.morphologyEx(smooth, cv2.MORPH_BLACKHAT, kernel)
+    # Multi-scale blackhat: large shadows need a kernel wider than the shadow to fill their interior.
+    small = max(15, int(min(h, w) * 0.22) | 1)
+    large = max(small + 2, int(min(h, w) * 0.45) | 1)
+    response = None
+    for size in (small, large):
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (size, size))
+        current = cv2.morphologyEx(smooth, cv2.MORPH_BLACKHAT, kernel)
+        response = current if response is None else np.maximum(response, current)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (large, large))
     positive = response[response > 0]
     threshold = max(10.0, float(np.percentile(positive, 70)) * 0.4) if positive.size else 10.0
-    candidate = (((response > threshold) & (smooth < 130) & valid).astype(np.uint8)) * 255
-    candidate = cv2.morphologyEx(candidate, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+    candidate = (((response > threshold) & (smooth < 150) & valid).astype(np.uint8)) * 255
+    candidate = cv2.morphologyEx(candidate, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
     n, labels, properties, _ = cv2.connectedComponentsWithStats(candidate, 8)
     result = np.zeros_like(gray)
     best_score = 0.0
@@ -76,21 +81,63 @@ def gray_dark_region(img_bgr):
             continue
         if x <= 1 or y <= 1 or x + width >= w - 1 or y + height >= h - 1:
             continue
-        region = (labels == index) & valid
-        if not region.any():
+        seed = (labels == index) & valid
+        if not seed.any():
             continue
-        ring = ((cv2.dilate(region.astype(np.uint8), kernel) > 0) & ~region) & valid
+        ring = ((cv2.dilate(seed.astype(np.uint8), kernel) > 0) & ~seed) & valid
         if not ring.any():
             continue
-        contrast = float(np.median(smooth[ring])) - float(np.median(smooth[region]))
-        # 坏死骨应深于周围鼠毛, 但内部深灰三角也应保留, 不只收纯黑。
+        contrast = float(np.median(smooth[ring])) - float(np.median(smooth[seed]))
+        # 先用黑帽找种子, 再在种子包围框内按灰度生长, 恢复大片连续黑色病灶。
         if contrast < 18 or max(width, height) > min(width, height) * 5:
             continue
-        score = contrast * np.sqrt(area)
+        ys, xs = np.where(seed)
+        pad_x = max(8, int(width * 0.25))
+        pad_y = max(8, int(height * 0.25))
+        x0, x1 = max(1, int(xs.min()) - pad_x), min(w - 1, int(xs.max()) + pad_x + 1)
+        y0, y1 = max(1, int(ys.min()) - pad_y), min(h - 1, int(ys.max()) + pad_y + 1)
+        local_limit = min(145.0, float(np.median(smooth[ring])) - 12.0)
+        local_dark = (smooth < local_limit) & valid
+        grown = np.zeros_like(seed)
+        grown[y0:y1, x0:x1] = local_dark[y0:y1, x0:x1]
+        grown[seed] = True
+        grown = cv2.morphologyEx(grown.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8)).astype(bool)
+        region = grown & valid
+        region_area = int(region.sum())
+        score = contrast * np.sqrt(max(1, region_area))
         if score > best_score:
             best_score = score
             result[:] = 0
             result[region] = 1
+    # 中央病灶兜底: 灰度片没有荧光 ROI 时, 病灶位于鼠体中央而不是图像边缘。
+    # 黑色背景已由 valid 排除, 这里按中央局部对比生长, 不再依赖黑帽恰好闭合整块区域。
+    if not result.any():
+        yy, xx = np.ogrid[:h, :w]
+        center_zone = (
+            (xx >= int(w * 0.18)) & (xx <= int(w * 0.82)) &
+            (yy >= int(h * 0.18)) & (yy <= int(h * 0.88)) & valid
+        )
+        local_bg = cv2.GaussianBlur(smooth, (0, 0), max(12.0, min(h, w) * 0.10))
+        darkness = local_bg.astype(np.float32) - smooth.astype(np.float32)
+        values = darkness[center_zone]
+        dark_threshold = max(8.0, float(np.percentile(values, 75))) if values.size else 8.0
+        fallback = (center_zone & (darkness > dark_threshold) & (smooth < 155)).astype(np.uint8)
+        fallback = cv2.morphologyEx(fallback, cv2.MORPH_CLOSE, np.ones((11, 11), np.uint8))
+        fallback = cv2.morphologyEx(fallback, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+        n_f, lab_f, props_f, _ = cv2.connectedComponentsWithStats(fallback, 8)
+        best = 0
+        best_score = -1.0
+        for index in range(1, n_f):
+            area = int(props_f[index, cv2.CC_STAT_AREA])
+            if area < max(20, int(h * w * 0.002)) or area > int(h * w * 0.20):
+                continue
+            component = lab_f == index
+            score = float(np.mean(darkness[component])) * np.sqrt(area)
+            if score > best_score:
+                best_score = score
+                best = index
+        if best:
+            result = (lab_f == best).astype(np.uint8)
     return result
 
 
@@ -288,38 +335,19 @@ def overlay_and_contours(img_bgr, masks, extra=None):
     ov = img_bgr.copy()
     gray_mode = extra is not None and extra.get("mode") == "gray_candidate"
     if gray_mode:
+        # 灰度图中的暗影就是待标注的黑色病灶: 用半透明黑色覆盖, 让形状比原始灰度阴影更清楚。
         region = masks[3] > 0
-        if region.any():
-            distance = cv2.distanceTransform(region.astype(np.uint8), cv2.DIST_L2, 5)
-            peak = max(1.0, float(distance.max()))
-            center = np.clip(distance / peak, 0.0, 1.0)
-            dark_red = np.array([25, 25, 190], dtype=float)
-            orange = np.array([25, 165, 255], dtype=float)
-            yellow = np.array([135, 255, 255], dtype=float)
-            heat = np.zeros_like(ov, dtype=float)
-            low = center < 0.5
-            heat[low] = dark_red[None, :] * (1 - center[low, None]) + orange[None, :] * center[low, None]
-            heat[~low] = orange[None, :] * (1 - (center[~low] - 0.5) * 2)[:, None] + yellow[None, :] * ((center[~low] - 0.5) * 2)[:, None]
-            ov[region] = (0.28 * ov[region].astype(float) + 0.72 * heat[region]).astype(np.uint8)
+        shadow = np.zeros_like(ov, dtype=np.float32)
+        shadow[region] = ov[region].astype(np.float32) * 0.38
+        ov[region] = shadow[region].astype(np.uint8)
         vis = img_bgr.copy()
+        vis[region] = shadow[region].astype(np.uint8)
         bone_map = (masks[3] * 255).astype(np.uint8)
-        outer, _ = cv2.findContours(bone_map, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if outer:
-            hull = cv2.convexHull(max(outer, key=cv2.contourArea))
-            peri = cv2.arcLength(hull, True)
-            hull = cv2.approxPolyDP(hull, 0.008 * peri, True)
-            cv2.drawContours(vis, [hull], -1, EDGE_BGR[1], 2)
-        distance = cv2.distanceTransform(bone_map, cv2.DIST_L2, 5)
-        peak = float(distance.max())
-        if peak > 3:
-            inner = ((distance > peak * 0.48) * 255).astype(np.uint8)
-            inner, _ = cv2.findContours(inner, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            for contour in inner:
-                if cv2.contourArea(contour) < 0.0002 * bone_map.size:
-                    continue
-                peri = cv2.arcLength(contour, True)
-                contour = cv2.approxPolyDP(contour, 0.008 * peri, True)
-                cv2.drawContours(vis, [contour], -1, EDGE_BGR[2], 2)
+        contours, _ = cv2.findContours(bone_map, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            contour = smooth_poly(max(contours, key=cv2.contourArea), strength=0.006)
+            for canvas in (ov, vis):
+                cv2.drawContours(canvas, [contour], -1, (0, 0, 0), 2)
         return ov, vis
     # 彩色荧光图: 先算两条主线, 生成线掩膜用于"染色不盖线"。
     outer_line = inner_line = None

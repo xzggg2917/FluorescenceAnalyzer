@@ -120,7 +120,7 @@ class MainWin(QMainWindow):
         self.sub = QLabel("方法: 黑骨优先分层 + KMeans(V,R)亮暗红自适应 · 形态学去噪 · 白色描边=坏死骨边界"); self.sub.setObjectName("stat"); left.addWidget(self.sub)
         self.view_tip = QLabel("📖 视图说明 · 半透明叠加: 原像素45%+类别色55%,看病灶分布 | 边界勾勒: 每类mask外轮廓描边,用于量面积与切除规划"); self.view_tip.setObjectName("stat"); self.view_tip.setWordWrap(True); left.addWidget(self.view_tip)
         bl.addLayout(left, 1)
-        for txt in ["分层可叠加", "免训练零样本", "U-Net可替换"]:
+        for txt in ["三视图同步对照", "黑色病灶清晰覆盖", "四指标定量统计"]:
             b = QLabel("✓ " + txt); b.setObjectName("badge"); bl.addWidget(b, alignment=Qt.AlignVCenter)
         right.addWidget(banner)
         imgs = QHBoxLayout(); imgs.setSpacing(12)
