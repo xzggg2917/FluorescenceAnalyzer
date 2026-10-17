@@ -31,6 +31,16 @@ def main():
     except ImportError:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller>=6.0"])
     icon = ensure_icon()
+    # 明确排除本项目从未使用的重型库, 避免被 sklearn/scipy 的 hook 顺带打包成垃圾。
+    excludes = [
+        "torch", "torchvision", "torchaudio", "tensorflow", "keras",
+        "jax", "jaxlib", "dask", "distributed", "pyarrow", "pandas",
+        "matplotlib", "numba", "llvmlite", "lightgbm", "xgboost",
+        "sqlalchemy", "IPython", "notebook", "pytest", "sphinx",
+        "cv2.gapi", "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets",
+        "PySide6.Qt3DCore", "PySide6.QtQuick", "PySide6.QtQml",
+        "PySide6.QtMultimedia", "PySide6.QtCharts", "PySide6.QtDataVisualization",
+    ]
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--noconfirm", "--clean",
@@ -40,11 +50,12 @@ def main():
         "--collect-all", "scipy",
         "--add-data", f"style.qss{os.pathsep}.",
         "--add-data", f"assets{os.pathsep}assets",
-        "desktop_app.py",
     ]
+    for m in excludes:
+        cmd += ["--exclude-module", m]
+    cmd.append("desktop_app.py")
     if icon:
-        cmd.insert(-1, "--icon")
-        cmd.insert(-1, icon)
+        cmd += ["--icon", icon]
     print(" ".join(cmd))
     subprocess.check_call(cmd, cwd=BASE)
     print(f"\nBuild done: {os.path.join(DIST, APP_NAME, APP_NAME + '.exe')}")
